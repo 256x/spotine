@@ -5,6 +5,35 @@ import (
 	"testing"
 )
 
+func TestRemainingTime(t *testing.T) {
+	tests := []struct {
+		name          string
+		progress, dur int
+		want          string
+	}{
+		{"start of track", 0, 226000, "-3:46"},
+		{"midway", 154000, 226000, "-1:12"},
+		{"one second left", 225000, 226000, "-0:01"},
+		{"exactly finished", 226000, 226000, "-0:00"},
+		{"past ten minutes", 0, 740000, "-12:20"},
+
+		// Unknown duration: nothing sensible to show.
+		{"no duration", 5000, 0, ""},
+		{"negative duration", 5000, -1, ""},
+
+		// Spotify sometimes reports progress beyond the track length.
+		{"overrun clamps to zero", 300000, 226000, "-0:00"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := PlaybackState{ProgressMS: tt.progress, DurationMS: tt.dur}
+			if got := remainingTime(s); got != tt.want {
+				t.Errorf("remainingTime(%d/%d) = %q, want %q", tt.progress, tt.dur, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestProgressBarChars(t *testing.T) {
 	tests := []struct {
 		name           string

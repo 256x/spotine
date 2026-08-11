@@ -121,7 +121,7 @@ func buildPlayerLine(s PlaybackState, width int, status string) string {
 		return runewidth.Truncate(status, width, "…")
 	}
 	if s.Track == "" && s.DeviceID == "" {
-		return styleAccent.Render("[spotine]") + styleDim.Render(" no active playback — [space] select")
+		return styleAccent.Render(cfg.Icons.Pause) + styleDim.Render(" no active playback — [space] select")
 	}
 
 	playSymbol := styleAccent.Render(cfg.Icons.Play)
@@ -138,7 +138,12 @@ func buildPlayerLine(s PlaybackState, width int, status string) string {
 		right = styleDim.Render(fmt.Sprintf(" %s:%d", cfg.Icons.Volume, *s.VolumePercent)) + right
 	}
 
-	prefix := styleAccent.Render("[spotine]") + " " + playSymbol + " "
+	// The bar shows roughly how far along the track is; the number answers the
+	// question the bar can't — whether to start something now or wait it out.
+	prefix := playSymbol + " "
+	if left := remainingTime(s); left != "" {
+		prefix += styleDim.Render(left) + " "
+	}
 	prefixW := lipgloss.Width(prefix)
 	rightW := lipgloss.Width(right)
 	available := width - prefixW - rightW
@@ -173,6 +178,20 @@ func buildPlayerLine(s PlaybackState, width int, status string) string {
 		styleAccent.Render(bar[:filledW]) +
 		styleDim.Render(bar[filledW:]) +
 		right
+}
+
+// remainingTime renders how much of the current track is left, as -m:ss.
+// Empty when the duration is unknown.
+func remainingTime(s PlaybackState) string {
+	if s.DurationMS <= 0 {
+		return ""
+	}
+	left := s.DurationMS - s.ProgressMS
+	if left < 0 {
+		left = 0
+	}
+	sec := left / 1000
+	return fmt.Sprintf("-%d:%02d", sec/60, sec%60)
 }
 
 // progressBarChars returns the bar as a plain string and the number of filled characters.
