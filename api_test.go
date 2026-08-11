@@ -1,0 +1,127 @@
+package main
+
+import "testing"
+
+func TestNormalizeAlbumName(t *testing.T) {
+	tests := []struct {
+		in   string
+		want string
+	}{
+		{"Kind of Blue", "kind of blue"},
+		{"Walkin' (Remastered 2025)", "walkin'"},
+		{"Miles: The New Miles Davis Quintet [Rudy Van Gelder Remaster]", "miles: the new miles davis quintet"},
+		{"Miles Ahead (Mono Version)", "miles ahead"},
+		{"Bitches Brew (Deluxe Edition)", "bitches brew"},
+		{"Something (Remastered) (Deluxe Edition)", "something"},
+		{"  Blue Haze  ", "blue haze"},
+
+		// Parenthetical parts that are not edition markers must survive, or
+		// genuinely different records would collapse into one.
+		{"Live at the Plugged Nickel (Vol. 2)", "live at the plugged nickel (vol. 2)"},
+		{"Miles '56", "miles '56"},
+		{"(Untitled)", "(untitled)"},
+	}
+	for _, tt := range tests {
+		if got := normalizeAlbumName(tt.in); got != tt.want {
+			t.Errorf("normalizeAlbumName(%q) = %q, want %q", tt.in, got, tt.want)
+		}
+	}
+}
+
+func TestDedupAlbumsCollapsesReissues(t *testing.T) {
+	in := []Album{
+		{Name: "Walkin'", ReleaseDate: "1957", TotalTracks: 5, AlbumType: "album"},
+		{Name: "Walkin' (Remastered 2025)", ReleaseDate: "2025", TotalTracks: 5, AlbumType: "album"},
+		{Name: "Kind of Blue", ReleaseDate: "1959", TotalTracks: 5, AlbumType: "album"},
+	}
+	got := dedupAlbums(in)
+	if len(got) != 2 {
+		t.Fatalf("expected 2 albums after dedup, got %d: %v", len(got), got)
+	}
+	// Equal track counts: the earlier release wins.
+	if got[0].ReleaseDate != "1957" {
+		t.Errorf("expected the 1957 original to win, got %+v", got[0])
+	}
+}
+
+func TestDedupAlbumsPrefersMoreTracks(t *testing.T) {
+	in := []Album{
+		{Name: "Bitches Brew", ReleaseDate: "1970", TotalTracks: 6, AlbumType: "album"},
+		{Name: "Bitches Brew (Deluxe Edition)", ReleaseDate: "1999", TotalTracks: 12, AlbumType: "album"},
+	}
+	got := dedupAlbums(in)
+	if len(got) != 1 {
+		t.Fatalf("expected 1 album, got %d", len(got))
+	}
+	if got[0].TotalTracks != 12 {
+		t.Errorf("expected the 12-track edition to win, got %+v", got[0])
+	}
+}
+
+// Spotify does not document a result order, so the same input in a different
+// order must produce the same output.
+func TestDedupAlbumsOrderIndependent(t *testing.T) {
+	a := Album{Name: "Milestones", ReleaseDate: "1958", TotalTracks: 7, AlbumType: "album"}
+	b := Album{Name: "Milestones (Remastered)", ReleaseDate: "2001", TotalTracks: 7, AlbumType: "album"}
+
+	forward := dedupAlbums([]Album{a, b})
+	reverse := dedupAlbums([]Album{b, a})
+
+	if len(forward) != 1 || len(reverse) != 1 {
+		t.Fatalf("expected 1 album each, got %d and %d", len(forward), len(reverse))
+	}
+	if forward[0].ReleaseDate != reverse[0].ReleaseDate {
+		t.Errorf("order changed the winner: %q vs %q", forward[0].Name, reverse[0].Name)
+	}
+}
+
+func TestDedupAlbumsSortsOldestFirst(t *testing.T) {
+	in := []Album{
+		{Name: "C", ReleaseDate: "2026-06-19", AlbumType: "album"},
+		{Name: "A", ReleaseDate: "1959", AlbumType: "album"},
+		{Name: "B", ReleaseDate: "1970-03-30", AlbumType: "album"},
+	}
+	got := dedupAlbums(in)
+	want := []string{"A", "B", "C"}
+	for i, w := range want {
+		if got[i].Name != w {
+			t.Errorf("position %d = %q, want %q (full order: %v)", i, got[i].Name, w, got)
+		}
+	}
+}
+
+// A single and an album sharing a title are different records.
+func TestDedupAlbumsKeepsDistinctTypes(t *testing.T) {
+	in := []Album{
+		{Name: "So What", ReleaseDate: "1959", TotalTracks: 1, AlbumType: "single"},
+		{Name: "So What", ReleaseDate: "1959", TotalTracks: 9, AlbumType: "album"},
+	}
+	if got := dedupAlbums(in); len(got) != 2 {
+		t.Errorf("expected single and album to stay separate, got %d", len(got))
+	}
+}
+
+func TestDedupAlbumsEmpty(t *testing.T) {
+	if got := dedupAlbums(nil); len(got) != 0 {
+		t.Errorf("expected empty result, got %v", got)
+	}
+}
+
+func TestSearchLimitClamp(t *testing.T) {
+	tests := []struct {
+		in   int
+		want int
+	}{
+		{0, maxSearchLimit},
+		{-5, maxSearchLimit},
+		{20, 20},
+		{50, 50},
+		{999, maxSearchLimit},
+	}
+	for _, tt := range tests {
+		got := SpotifyConfig{SearchLimit: tt.in}.searchLimit()
+		if got != tt.want {
+			t.Errorf("searchLimit(%d) = %d, want %d", tt.in, got, tt.want)
+		}
+	}
+}

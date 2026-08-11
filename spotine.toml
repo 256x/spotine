@@ -1,0 +1,39 @@
+# spotine configuration
+# place this file at ~/.config/spotine/config.toml
+
+# --- theme ---
+# built-in themes: terminal (default), dracula, iceberg, monokai, solarized-dark,
+#                  solarized-light, nord, gruvbox, tokyo-night, catppuccin, rose-pine, mono
+# "terminal" reads your terminal's foreground color and uses it as the accent.
+[theme]
+# name = "terminal"
+
+# custom colors (hex or terminal 256-color number)
+# overrides the named theme if both are set
+# accent      = "#84a0c6"
+# selected_fg = "#c6c8d1"
+# filter_fg   = "#89b8c2"
+
+# --- icons ---
+# defaults use Nerd Fonts (nf-md-*); change to plain text if unavailable
+[icons]
+# play    = "▶"
+# pause   = "⏸"
+# volume  = "V"
+# shuffle = "S"
+
+# --- spotify ---
+# client_id and client_secret can be set here instead of env vars
+# environment variables (SPOTIFY_CLIENT_ID etc.) take precedence
+[spotify]
+# client_id     = ""
+# client_secret = ""
+# redirect_uri  = "http://127.0.0.1:8888/callback"
+# search_limit  = 20   # search results per query (max 50)
+
+# --- ui ---
+[ui]
+# which browser the popup opens in: "playlist" or "album"
+# the -p / -a flags override this for a single run
+# default_mode  = "playlist"
+# tick_interval = 2   # playback polling interval in seconds
