@@ -330,9 +330,27 @@ func normalizeAlbumName(name string) string {
 	return s
 }
 
+// earlierRelease reports whether release date a precedes b. Spotify dates vary
+// in precision ("1985", "1985-06", "1985-06-21"), which string order already
+// handles; an unknown date is treated as later than any known one so it never
+// wins a comparison by being empty.
+func earlierRelease(a, b string) bool {
+	if a == "" {
+		return false
+	}
+	if b == "" {
+		return true
+	}
+	return a < b
+}
+
 // dedupAlbums collapses the regional and reissue duplicates Spotify returns for
 // the same record. Spotify does not guarantee a result order, so the winner is
-// picked by track count (then earliest release) rather than by position.
+// picked by release date rather than by position.
+//
+// The original wins, not the fattest edition: a deluxe reissue carries both a
+// recent date and bonus tracks, so preferring track count would replace the
+// record with its reissue and move it decades out of place in the listing.
 func dedupAlbums(albums []Album) []Album {
 	type key struct{ name, albumType string }
 	best := make(map[key]Album, len(albums))
@@ -346,8 +364,8 @@ func dedupAlbums(albums []Album) []Album {
 			order = append(order, k)
 			continue
 		}
-		if a.TotalTracks > prev.TotalTracks ||
-			(a.TotalTracks == prev.TotalTracks && a.ReleaseDate < prev.ReleaseDate) {
+		if earlierRelease(a.ReleaseDate, prev.ReleaseDate) ||
+			(a.ReleaseDate == prev.ReleaseDate && a.TotalTracks > prev.TotalTracks) {
 			best[k] = a
 		}
 	}
@@ -359,7 +377,7 @@ func dedupAlbums(albums []Album) []Album {
 	// Oldest first: reissues and compilations carry recent release dates, so
 	// newest-first would bury an artist's original records under them.
 	sort.SliceStable(out, func(i, j int) bool {
-		return out[i].ReleaseDate < out[j].ReleaseDate
+		return earlierRelease(out[i].ReleaseDate, out[j].ReleaseDate)
 	})
 	return out
 }

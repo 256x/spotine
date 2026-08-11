@@ -44,7 +44,9 @@ func TestDedupAlbumsCollapsesReissues(t *testing.T) {
 	}
 }
 
-func TestDedupAlbumsPrefersMoreTracks(t *testing.T) {
+// A deluxe reissue has both a later date and more tracks. The original is the
+// record; the reissue is a repackaging of it.
+func TestDedupAlbumsPrefersTheOriginal(t *testing.T) {
 	in := []Album{
 		{Name: "Bitches Brew", ReleaseDate: "1970", TotalTracks: 6, AlbumType: "album"},
 		{Name: "Bitches Brew (Deluxe Edition)", ReleaseDate: "1999", TotalTracks: 12, AlbumType: "album"},
@@ -53,8 +55,51 @@ func TestDedupAlbumsPrefersMoreTracks(t *testing.T) {
 	if len(got) != 1 {
 		t.Fatalf("expected 1 album, got %d", len(got))
 	}
-	if got[0].TotalTracks != 12 {
-		t.Errorf("expected the 12-track edition to win, got %+v", got[0])
+	if got[0].ReleaseDate != "1970" {
+		t.Errorf("expected the 1970 original to win, got %+v", got[0])
+	}
+}
+
+// Regression: John Mellencamp's Scarecrow lost to its 2022 deluxe, which both
+// hid the 1985 record and sorted it 37 years out of place.
+func TestDedupAlbumsScarecrow(t *testing.T) {
+	in := []Album{
+		{Name: "Scarecrow (Deluxe Edition / 2022 Mix)", ReleaseDate: "2022-11-04", TotalTracks: 24, AlbumType: "album"},
+		{Name: "Scarecrow", ReleaseDate: "1985", TotalTracks: 13, AlbumType: "album"},
+	}
+	got := dedupAlbums(in)
+	if len(got) != 1 {
+		t.Fatalf("expected 1 album, got %d: %v", len(got), got)
+	}
+	if got[0].Name != "Scarecrow" || got[0].ReleaseDate != "1985" {
+		t.Errorf("expected the 1985 original, got %+v", got[0])
+	}
+}
+
+// An album with more tracks only wins when the dates are the same.
+func TestDedupAlbumsTracksBreakDateTies(t *testing.T) {
+	in := []Album{
+		{Name: "Tutu", ReleaseDate: "1986", TotalTracks: 8, AlbumType: "album"},
+		{Name: "Tutu (Expanded)", ReleaseDate: "1986", TotalTracks: 11, AlbumType: "album"},
+	}
+	got := dedupAlbums(in)
+	if len(got) != 1 || got[0].TotalTracks != 11 {
+		t.Errorf("expected the 11-track edition on a date tie, got %+v", got)
+	}
+}
+
+// A missing release date must not win by comparing as the empty string.
+func TestDedupAlbumsUnknownDateLoses(t *testing.T) {
+	in := []Album{
+		{Name: "Nighthawks", ReleaseDate: "", TotalTracks: 10, AlbumType: "album"},
+		{Name: "Nighthawks (Remastered)", ReleaseDate: "1980", TotalTracks: 10, AlbumType: "album"},
+	}
+	got := dedupAlbums(in)
+	if len(got) != 1 {
+		t.Fatalf("expected 1 album, got %d", len(got))
+	}
+	if got[0].ReleaseDate != "1980" {
+		t.Errorf("a known date should beat an unknown one, got %+v", got[0])
 	}
 }
 
