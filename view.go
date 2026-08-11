@@ -222,18 +222,19 @@ func (m model) base() string {
 	return m.renderPlayerLine()
 }
 
-// modeLabel names what the current mode browses.
+// modeLabel titles the picker. It names the mode rather than the rows, so the
+// title stays meaningful on the empty search screen and says what tab toggles.
 func (m model) modeLabel() string {
 	if m.mode == modeAlbum {
-		return "artists"
+		return "artist mode"
 	}
-	return "playlists"
+	return "playlist mode"
 }
 
 func (m model) renderQuery() string {
-	other := "artists"
+	other := "artist mode"
 	if m.mode == modeAlbum {
-		other = "playlists"
+		other = "playlist mode"
 	}
 	enterLabel := "search"
 	if m.mode == modePlaylist && m.query == "" {
