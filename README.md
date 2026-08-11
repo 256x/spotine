@@ -31,7 +31,11 @@ keys, the device picker — is identical either way.
 
 Reissues and remasters carry recent release dates. Sorted newest-first, an artist's actual
 work sits buried under decades of repackaging. Oldest-first puts the records where they
-belong — in the order they were made — with reissues collapsed onto the original.
+belong — in the order they were made.
+
+Every pressing is listed by default, because which one you want is your call. If you would
+rather see one entry per record, set `collapse_reissues` and only the original of each is
+kept.
 
 **Why tmux/zellij?**
 
@@ -184,6 +188,9 @@ Config file: `~/.config/spotine/config.toml`
 # client_secret = ""          # alternative to SPOTIFY_CLIENT_SECRET env var
 # redirect_uri  = "http://127.0.0.1:8888/callback"
 # search_limit  = 20          # search results per query (max 50)
+
+[albums]
+# collapse_reissues = false   # true keeps only the original of each record
 
 [ui]
 default_mode  = "playlist"    # or "album"; -p / -a override it per run

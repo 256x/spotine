@@ -52,11 +52,20 @@ type UIConfig struct {
 	DefaultMode  string `toml:"default_mode"`
 }
 
+type AlbumsConfig struct {
+	// CollapseReissues hides remasters and deluxe editions of a record the
+	// artist already has in the list, keeping the original. Off by default:
+	// the full catalogue is what Spotify actually holds, and deciding which
+	// pressing someone wants is not this program's call.
+	CollapseReissues bool `toml:"collapse_reissues"`
+}
+
 type Config struct {
 	Theme   ThemeConfig   `toml:"theme"`
 	Icons   IconsConfig   `toml:"icons"`
 	Spotify SpotifyConfig `toml:"spotify"`
 	UI      UIConfig      `toml:"ui"`
+	Albums  AlbumsConfig  `toml:"albums"`
 }
 
 type resolvedTheme struct {
@@ -148,6 +157,9 @@ func defaultConfig() Config {
 		UI: UIConfig{
 			TickInterval: 2,
 			DefaultMode:  "playlist",
+		},
+		Albums: AlbumsConfig{
+			CollapseReissues: false,
 		},
 	}
 }

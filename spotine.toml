@@ -31,6 +31,13 @@
 # redirect_uri  = "http://127.0.0.1:8888/callback"
 # search_limit  = 20   # search results per query (max 50)
 
+# --- albums ---
+# an artist's catalogue usually carries several pressings of the same record:
+# the original, a remaster, a deluxe edition. by default every one is listed.
+# set collapse_reissues to keep only the original of each and hide the rest.
+[albums]
+# collapse_reissues = false
+
 # --- ui ---
 [ui]
 # which browser the popup opens in: "playlist" or "album"

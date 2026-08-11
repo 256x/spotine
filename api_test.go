@@ -152,6 +152,43 @@ func TestDedupAlbumsEmpty(t *testing.T) {
 	}
 }
 
+// With collapsing off, every pressing survives and the order still runs
+// oldest first.
+func TestSortOldestFirstKeepsEveryPressing(t *testing.T) {
+	in := []Album{
+		{Name: "Scarecrow (Deluxe Edition / 2022 Mix)", ReleaseDate: "2022-11-04", TotalTracks: 24},
+		{Name: "Scarecrow", ReleaseDate: "1985", TotalTracks: 13},
+		{Name: "American Fool", ReleaseDate: "1982", TotalTracks: 10},
+	}
+	got := sortOldestFirst(in)
+	if len(got) != 3 {
+		t.Fatalf("expected all 3 pressings, got %d", len(got))
+	}
+	want := []string{"1982", "1985", "2022-11-04"}
+	for i, w := range want {
+		if got[i].ReleaseDate != w {
+			t.Errorf("position %d = %q, want %q", i, got[i].ReleaseDate, w)
+		}
+	}
+}
+
+// An album with no release date sorts last rather than jumping to the top.
+func TestSortOldestFirstUnknownDateLast(t *testing.T) {
+	got := sortOldestFirst([]Album{
+		{Name: "unknown", ReleaseDate: ""},
+		{Name: "old", ReleaseDate: "1959"},
+	})
+	if got[0].Name != "old" {
+		t.Errorf("expected the dated album first, got %v", got)
+	}
+}
+
+func TestDefaultConfigListsEveryPressing(t *testing.T) {
+	if defaultConfig().Albums.CollapseReissues {
+		t.Error("collapsing reissues should be opt-in, not the default")
+	}
+}
+
 func TestSearchLimitClamp(t *testing.T) {
 	tests := []struct {
 		in   int

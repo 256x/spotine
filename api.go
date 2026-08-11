@@ -295,7 +295,20 @@ func (c *SpotifyClient) GetArtistAlbums(ctx context.Context, artistID string) ([
 	if err != nil {
 		return nil, err
 	}
-	return dedupAlbums(all), nil
+	if cfg.Albums.CollapseReissues {
+		return dedupAlbums(all), nil
+	}
+	return sortOldestFirst(all), nil
+}
+
+// sortOldestFirst orders a catalogue the way it was recorded. Reissues and
+// compilations carry recent release dates, so newest-first would bury an
+// artist's original records under decades of repackaging.
+func sortOldestFirst(albums []Album) []Album {
+	sort.SliceStable(albums, func(i, j int) bool {
+		return earlierRelease(albums[i].ReleaseDate, albums[j].ReleaseDate)
+	})
+	return albums
 }
 
 var editionMarkers = []string{
@@ -374,12 +387,7 @@ func dedupAlbums(albums []Album) []Album {
 	for _, k := range order {
 		out = append(out, best[k])
 	}
-	// Oldest first: reissues and compilations carry recent release dates, so
-	// newest-first would bury an artist's original records under them.
-	sort.SliceStable(out, func(i, j int) bool {
-		return earlierRelease(out[i].ReleaseDate, out[j].ReleaseDate)
-	})
-	return out
+	return sortOldestFirst(out)
 }
 
 type albumTrackItem struct {
