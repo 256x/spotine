@@ -26,6 +26,9 @@ type ThemeConfig struct {
 }
 
 type IconsConfig struct {
+	// App marks the line as this player's, so it is distinguishable from any
+	// other one-line pane. Set it to "" to reclaim the column.
+	App     string `toml:"app"`
 	Play    string `toml:"play"`
 	Pause   string `toml:"pause"`
 	Volume  string `toml:"volume"`
@@ -136,6 +139,7 @@ func defaultConfig() Config {
 			Name: "terminal",
 		},
 		Icons: IconsConfig{
+			App:     "", // nf-fa-spotify
 			Play:    "󰐊",
 			Pause:   "󰏤",
 			Volume:  "󰕾",

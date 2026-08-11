@@ -17,6 +17,10 @@
 # --- icons ---
 # defaults use Nerd Fonts (nf-md-*); change to plain text if unavailable
 [icons]
+# app marks the line as spotine's, so it stands out among other one-line panes.
+# some terminals measure this glyph as two columns and shift the line; if that
+# happens, swap it for something narrower or set app = "" to drop it entirely.
+# app     = "♪"
 # play    = "▶"
 # pause   = "⏸"
 # volume  = "V"

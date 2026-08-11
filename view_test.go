@@ -3,7 +3,57 @@ package main
 import (
 	"strings"
 	"testing"
+
+	"github.com/charmbracelet/lipgloss"
 )
+
+func TestAppMark(t *testing.T) {
+	initStyles(ThemeConfig{Name: "mono"}.resolve())
+	saved := cfg
+	defer func() { cfg = saved }()
+
+	// Unset means no glyph and no stray separator eating a column.
+	cfg.Icons.App = ""
+	if got := appMark(); got != "" {
+		t.Errorf("empty icon should render nothing, got %q", got)
+	}
+
+	cfg.Icons.App = "♪"
+	if got := appMark(); !strings.Contains(got, "♪") || !strings.HasSuffix(got, " ") {
+		t.Errorf("appMark() = %q, want the glyph followed by a space", got)
+	}
+}
+
+// The mark must not push the line past the pane width at any size.
+func TestPlayerLineFitsWidth(t *testing.T) {
+	initStyles(ThemeConfig{Name: "mono"}.resolve())
+	initGradient()
+	saved := cfg
+	defer func() { cfg = saved }()
+	cfg = defaultConfig()
+	cfg.Icons = IconsConfig{Play: "▶", Pause: "⏸", Volume: "V", Shuffle: "S"}
+
+	vol := 60
+	states := []PlaybackState{
+		{Track: "Kind of Blue", Artist: "Miles Davis", ProgressMS: 1000, DurationMS: 300000,
+			VolumePercent: &vol, DeviceID: "d"},
+		{Track: "三日月サンセット", Artist: "sakanaction", ProgressMS: 154000, DurationMS: 226000,
+			VolumePercent: &vol, DeviceID: "d", Playing: true},
+		{}, // nothing playing
+	}
+
+	for _, mark := range []string{"", "♪"} {
+		cfg.Icons.App = mark
+		for _, s := range states {
+			for w := 10; w <= 120; w++ {
+				line := buildPlayerLine(s, w, "")
+				if got := lipgloss.Width(line); got > w {
+					t.Fatalf("mark=%q width=%d produced %d columns: %q", mark, w, got, line)
+				}
+			}
+		}
+	}
+}
 
 func TestRemainingTime(t *testing.T) {
 	tests := []struct {

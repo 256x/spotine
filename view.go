@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/ansi"
 	colorful "github.com/lucasb-eyer/go-colorful"
 	"github.com/mattn/go-runewidth"
 	"github.com/muesli/termenv"
@@ -116,12 +117,31 @@ func (m model) currentStatus() string {
 	return ""
 }
 
+// clampLine cuts a rendered line to the pane width. The pieces below are sized
+// independently, and in a very narrow pane the fixed ones — the icons, the
+// volume and shuffle readout — can exceed the width on their own. Without this
+// the line wraps and the single-line pane becomes two.
+func clampLine(line string, width int) string {
+	if width <= 0 {
+		return ""
+	}
+	if lipgloss.Width(line) <= width {
+		return line
+	}
+	return ansi.Truncate(line, width, "")
+}
+
 func buildPlayerLine(s PlaybackState, width int, status string) string {
+	return clampLine(playerLine(s, width, status), width)
+}
+
+func playerLine(s PlaybackState, width int, status string) string {
 	if status != "" {
 		return runewidth.Truncate(status, width, "…")
 	}
 	if s.Track == "" && s.DeviceID == "" {
-		return styleAccent.Render(cfg.Icons.Pause) + styleDim.Render(" no active playback — [space] select")
+		return appMark() + styleAccent.Render(cfg.Icons.Pause) +
+			styleDim.Render(" no active playback — [space] select")
 	}
 
 	playSymbol := styleAccent.Render(cfg.Icons.Play)
@@ -140,7 +160,7 @@ func buildPlayerLine(s PlaybackState, width int, status string) string {
 
 	// The bar shows roughly how far along the track is; the number answers the
 	// question the bar can't — whether to start something now or wait it out.
-	prefix := playSymbol + " "
+	prefix := appMark() + playSymbol + " "
 	if left := remainingTime(s); left != "" {
 		prefix += styleDim.Render(left) + " "
 	}
@@ -178,6 +198,15 @@ func buildPlayerLine(s PlaybackState, width int, status string) string {
 		styleAccent.Render(bar[:filledW]) +
 		styleDim.Render(bar[filledW:]) +
 		right
+}
+
+// appMark is the glyph identifying the line as this player's, with its
+// trailing space. Empty when the icon is unset, so the column is not wasted.
+func appMark() string {
+	if cfg.Icons.App == "" {
+		return ""
+	}
+	return styleAccent.Render(cfg.Icons.App) + " "
 }
 
 // remainingTime renders how much of the current track is left, as -m:ss.
