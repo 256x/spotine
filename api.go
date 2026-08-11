@@ -169,7 +169,7 @@ func (c *SpotifyClient) GetUserPlaylists(ctx context.Context) ([]Playlist, error
 // playlist context is started with this as the offset; without it Spotify can
 // resume mid-playlist rather than at the top.
 func (c *SpotifyClient) GetFirstTrackURI(ctx context.Context, playlistID string) (string, error) {
-	path := "/v1/playlists/" + url.PathEscape(playlistID) + "/tracks?limit=1&fields=items(track(uri))"
+	path := playlistItemsPath(playlistID) + "?limit=1&fields=items(track(uri))"
 	var r struct {
 		Items []struct {
 			Track struct {
@@ -184,6 +184,14 @@ func (c *SpotifyClient) GetFirstTrackURI(ctx context.Context, playlistID string)
 		return r.Items[0].Track.URI, nil
 	}
 	return "", nil
+}
+
+// playlistItemsPath builds the playlist contents endpoint. Spotify renamed
+// this from /tracks to /items in February 2026. Both currently answer, but a
+// freshly registered app was observed serving 403 on /tracks while /items
+// worked, so the current name is the one to use.
+func playlistItemsPath(playlistID string) string {
+	return "/v1/playlists/" + url.PathEscape(playlistID) + "/items"
 }
 
 type playlistTrackItem struct {
@@ -203,8 +211,7 @@ type playlistTrackItem struct {
 // GetPlaylistTracks returns every track in a playlist, following pagination.
 func (c *SpotifyClient) GetPlaylistTracks(ctx context.Context, playlistID string) ([]Track, error) {
 	const fields = "next,items(track(name,uri,duration_ms,album(name),artists(name)))"
-	path := "/v1/playlists/" + url.PathEscape(playlistID) +
-		"/tracks?limit=100&fields=" + url.QueryEscape(fields)
+	path := playlistItemsPath(playlistID) + "?limit=100&fields=" + url.QueryEscape(fields)
 
 	var all []Track
 	err := paginate(ctx, c, path, maxPages, func(items []playlistTrackItem) {
@@ -277,7 +284,8 @@ type albumItem struct {
 // GetArtistAlbums returns an artist's full albums, oldest first, with reissues
 // collapsed onto the original record.
 func (c *SpotifyClient) GetArtistAlbums(ctx context.Context, artistID string) ([]Album, error) {
-	path := fmt.Sprintf("/v1/artists/%s/albums?include_groups=album&limit=50", url.PathEscape(artistID))
+	path := fmt.Sprintf("/v1/artists/%s/albums?include_groups=album&limit=%d",
+		url.PathEscape(artistID), maxSearchLimit)
 
 	var all []Album
 	err := paginate(ctx, c, path, maxPages, func(items []albumItem) {

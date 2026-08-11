@@ -58,18 +58,42 @@ func DeleteToken() error {
 	return os.Remove(tokenPath())
 }
 
+// migrationMarker records that the one-time import from the superseded app has
+// already been considered, so it is never repeated.
+func migrationMarker() string {
+	return filepath.Join(configDir(), ".migrated")
+}
+
 // AdoptLegacyToken copies slp's token on first run so upgrading does not force
 // a fresh login. The token is copied rather than shared: slp is frozen, and two
 // processes refreshing the same file would race.
+//
+// It runs at most once, ever. Without the marker, `--logout` would delete the
+// token and the next launch would immediately import it again, so logging out
+// would appear to do nothing.
 func AdoptLegacyToken() bool {
+	if _, err := os.Stat(migrationMarker()); err == nil {
+		return false
+	}
 	if _, err := os.Stat(tokenPath()); err == nil {
+		markMigrated()
 		return false
 	}
 	t, err := readToken(filepath.Join(legacyConfigDir(), "token.json"))
 	if err != nil {
+		// Nothing to import; don't mark, so a later slp install still migrates.
 		return false
 	}
-	return SaveToken(t) == nil
+	if SaveToken(t) != nil {
+		return false
+	}
+	markMigrated()
+	return true
+}
+
+func markMigrated() {
+	_ = os.MkdirAll(configDir(), 0o755)
+	_ = os.WriteFile(migrationMarker(), nil, 0o644)
 }
 
 func randomState() string {

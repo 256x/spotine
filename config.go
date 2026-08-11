@@ -16,7 +16,7 @@ var sampleConfig []byte
 // on first run, so upgrading does not force a fresh login.
 const legacyApp = "slp"
 
-// Spotify's own ceiling for search results per request.
+// Spotify's ceiling for search and artist-album pages.
 const maxSearchLimit = 50
 
 type ThemeConfig struct {

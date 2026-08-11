@@ -11,7 +11,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-const version = "v1.0.0"
+const version = "v1.0.1"
 
 func main() {
 	versionFlag := flag.Bool("version", false, "print version and exit")
@@ -94,9 +94,11 @@ func main() {
 	}
 	// An adopted token can only be refreshed with the credentials that issued
 	// it, so fall back to the superseded app's config rather than re-prompting.
+	usingLegacyCreds := false
 	if clientID == "" || clientSecret == "" {
 		if id, secret := legacyCredentials(); id != "" && secret != "" {
 			clientID, clientSecret = id, secret
+			usingLegacyCreds = true
 		}
 	}
 	redirectURI := os.Getenv("SPOTIFY_REDIRECT_URI")
@@ -118,7 +120,10 @@ func main() {
 		debugLog = logger.Printf
 	}
 
-	if AdoptLegacyToken() {
+	// Only import the old token when the old credentials are also in use. A
+	// refresh token is bound to the credentials that issued it, so importing
+	// it under a different app's id would fail on the first refresh.
+	if usingLegacyCreds && AdoptLegacyToken() {
 		debugLog("adopted token from %s", legacyApp)
 	}
 

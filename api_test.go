@@ -196,8 +196,12 @@ func TestSearchLimitClamp(t *testing.T) {
 	}{
 		{0, maxSearchLimit},
 		{-5, maxSearchLimit},
+		{5, 5},
 		{20, 20},
-		{50, 50},
+		{maxSearchLimit, maxSearchLimit},
+		// Anything above the cap is rejected by the API outright, so clamp
+		// rather than pass it through.
+		{maxSearchLimit + 1, maxSearchLimit},
 		{999, maxSearchLimit},
 	}
 	for _, tt := range tests {

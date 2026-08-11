@@ -8,6 +8,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"testing"
 )
 
@@ -65,7 +66,7 @@ func TestLiveArtistAlbumsAndTracks(t *testing.T) {
 	if len(albums) == 0 {
 		t.Fatal("no albums returned")
 	}
-	t.Logf("%d albums after dedup, oldest: %s (%s)", len(albums), albums[0].Name, albums[0].ReleaseDate)
+	t.Logf("%d albums, oldest: %s (%s)", len(albums), albums[0].Name, albums[0].ReleaseDate)
 
 	// The list is sorted oldest first.
 	for i := 1; i < len(albums); i++ {
@@ -134,13 +135,27 @@ func TestLiveDevices(t *testing.T) {
 // The search limit the config asks for is the number the API actually honours.
 func TestLiveSearchLimitHonoured(t *testing.T) {
 	c := liveClient(t)
+	ctx := context.Background()
+
 	cfg.Spotify.SearchLimit = maxSearchLimit
-	artists, err := c.SearchArtists(context.Background(), "jazz")
+	artists, err := c.SearchArtists(ctx, "jazz")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(artists) < 11 {
-		t.Errorf("asked for %d artists, got %d — the API cap may have changed",
-			maxSearchLimit, len(artists))
+	if len(artists) != maxSearchLimit {
+		t.Errorf("asked for %d artists, got %d", maxSearchLimit, len(artists))
+	}
+
+	// One past the cap must be refused, which is what makes clamping to it
+	// worthwhile. If this ever starts returning 200, the ceiling has moved.
+	resp, err := c.do(ctx, "GET",
+		fmt.Sprintf("/v1/search?q=jazz&type=artist&limit=%d", maxSearchLimit+1), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != 400 {
+		t.Errorf("limit=%d returned HTTP %d, expected it to be rejected — the cap may have changed",
+			maxSearchLimit+1, resp.StatusCode)
 	}
 }

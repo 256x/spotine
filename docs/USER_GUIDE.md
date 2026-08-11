@@ -344,7 +344,13 @@ or set plain text icons in config.toml.
 
 **OAuth callback fails**
 Make sure `http://127.0.0.1:8888/callback` is listed as a Redirect URI in your Spotify
-developer app settings.
+developer app settings. It must be the literal address — `localhost` is rejected — and it
+needs the port.
+
+**"Invalid limit" or 403 right after creating a Spotify app**
+A newly registered app is not immediately at full strength: for the first several minutes it
+can reject ordinary request sizes and refuse some endpoints outright. Nothing is
+misconfigured. Wait a few minutes and try again.
 
 **An album you expected is missing**
 Three things narrow the list, in order of how much they remove. Compilations, singles and
