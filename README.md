@@ -43,6 +43,8 @@ The picker uses your multiplexer's native floating window. No alt-screen takeove
 context switch. Press `space`, pick something, and the popup disappears. Your layout is
 untouched.
 
+[User Guide](./docs/USER_GUIDE.md)
+
 ---
 
 ## Requirements
@@ -65,8 +67,8 @@ go install github.com/256x/spotine@latest
 ## Setup
 
 **Upgrading from [slp](https://github.com/256x/slp)?** There is nothing to set up. On first
-run `spotine` copies slp's token and credentials, so you are already logged in. slp keeps
-working; the two no longer share state after the copy.
+run `spotine` copies slp's token and credentials, so you are already logged in. The copy is
+one-way — after it, the two keep separate tokens.
 
 Otherwise:
 
@@ -266,7 +268,10 @@ go test -tags live ./...  # also hits the real Spotify API (needs a token)
 `spotine` merges two earlier apps: [slp](https://github.com/256x/slp), which did playlists,
 and an unreleased artist/album player. They had grown near-identical auth, config, and
 rendering code, so they became one binary with two modes instead of two codebases drifting
-apart. slp remains available but is no longer developed.
+apart.
+
+slp is discontinued and spotine replaces it. slp's final release stays up for anyone still
+running it, but all further work happens here.
 
 ---
 
