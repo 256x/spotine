@@ -195,7 +195,17 @@ Config file: `~/.config/spotine/config.toml`
 [ui]
 default_mode  = "playlist"    # or "album"; -p / -a override it per run
 tick_interval = 2             # polling interval in seconds
+language      = ""            # names come back in this language; "" follows $LANG
 ```
+
+### Names in your own language
+
+Spotify stores localized names for many artists and returns them when asked. With a
+Japanese locale, サカナクション is listed and displayed as サカナクション rather than
+`sakanaction`, and 米津玄師 keeps its kanji.
+
+This follows `$LANG` automatically. Set `language` to a tag like `"ja-JP"` or `"en"` to
+pin it, or to `"none"` to always get whatever Spotify considers the canonical name.
 
 ---
 

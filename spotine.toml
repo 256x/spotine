@@ -44,3 +44,9 @@
 # the -p / -a flags override this for a single run
 # default_mode  = "playlist"
 # tick_interval = 2   # playback polling interval in seconds
+
+# spotify returns names in the language you ask for, where it has them: with
+# a japanese locale sakanaction reads as サカナクション and 米津玄師 keeps its
+# kanji. left empty this follows $LANG; set a tag like "ja-JP" or "en" to fix
+# it, or "none" to take whatever spotify considers canonical.
+# language      = ""

@@ -4,6 +4,7 @@ import (
 	_ "embed"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/BurntSushi/toml"
 )
@@ -50,6 +51,10 @@ func (s SpotifyConfig) searchLimit() int {
 type UIConfig struct {
 	TickInterval int    `toml:"tick_interval"`
 	DefaultMode  string `toml:"default_mode"`
+	// Language is the Accept-Language sent with every request. Spotify
+	// localizes names when asked: sakanaction comes back as サカナクション to a
+	// Japanese client. Empty follows the shell locale; "none" disables it.
+	Language string `toml:"language"`
 }
 
 type AlbumsConfig struct {
@@ -226,6 +231,36 @@ func LoadConfig() Config {
 		return defaultConfig()
 	}
 	return cfg
+}
+
+// acceptLanguage resolves the Accept-Language header value: the configured
+// value if set, otherwise the shell locale. Returns "" to send no header.
+func acceptLanguage() string {
+	switch v := strings.TrimSpace(cfg.UI.Language); {
+	case strings.EqualFold(v, "none"):
+		return ""
+	case v != "":
+		return v
+	}
+	for _, env := range []string{"LC_ALL", "LC_MESSAGES", "LANG"} {
+		if tag := localeToTag(os.Getenv(env)); tag != "" {
+			return tag
+		}
+	}
+	return ""
+}
+
+// localeToTag converts a POSIX locale to a BCP-47 language tag:
+// "ja_JP.UTF-8" becomes "ja-JP". The locale-less "C" and "POSIX" yield "".
+func localeToTag(locale string) string {
+	s := strings.TrimSpace(locale)
+	if i := strings.IndexAny(s, ".@"); i >= 0 {
+		s = s[:i]
+	}
+	if s == "" || s == "C" || s == "POSIX" {
+		return ""
+	}
+	return strings.ReplaceAll(s, "_", "-")
 }
 
 // legacyCredentials reads client_id/client_secret from slp's config. An adopted

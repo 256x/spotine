@@ -18,6 +18,7 @@ type SpotifyClient struct {
 	token        *TokenData
 	clientID     string
 	clientSecret string
+	acceptLang   string
 	httpClient   *http.Client
 	debugLog     func(string, ...any)
 }
@@ -27,6 +28,7 @@ func NewSpotifyClient(token *TokenData, clientID, clientSecret string, debug fun
 		token:        token,
 		clientID:     clientID,
 		clientSecret: clientSecret,
+		acceptLang:   acceptLanguage(),
 		httpClient:   &http.Client{Timeout: 10 * time.Second},
 		debugLog:     debug,
 	}
@@ -77,6 +79,11 @@ func (c *SpotifyClient) do(ctx context.Context, method, path string, body any) (
 		c.mu.Unlock()
 		if body != nil {
 			req.Header.Set("Content-Type", "application/json")
+		}
+		// Spotify returns names in the requested language where it has them,
+		// so a Japanese act reads as サカナクション rather than "sakanaction".
+		if c.acceptLang != "" {
+			req.Header.Set("Accept-Language", c.acceptLang)
 		}
 
 		resp, err := c.httpClient.Do(req)
