@@ -7,24 +7,9 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-func TestAppMark(t *testing.T) {
-	initStyles(ThemeConfig{Name: "mono"}.resolve())
-	saved := cfg
-	defer func() { cfg = saved }()
-
-	// Unset means no glyph and no stray separator eating a column.
-	cfg.Icons.App = ""
-	if got := appMark(); got != "" {
-		t.Errorf("empty icon should render nothing, got %q", got)
-	}
-
-	cfg.Icons.App = "♪"
-	if got := appMark(); !strings.Contains(got, "♪") || !strings.HasSuffix(got, " ") {
-		t.Errorf("appMark() = %q, want the glyph followed by a space", got)
-	}
-}
-
-// The mark must not push the line past the pane width at any size.
+// The fixed parts of the line — icons, volume and shuffle — are sized
+// independently of the track text, and in a narrow pane they can exceed the
+// width on their own. A single-line pane that wraps becomes two lines.
 func TestPlayerLineFitsWidth(t *testing.T) {
 	initStyles(ThemeConfig{Name: "mono"}.resolve())
 	initGradient()
@@ -39,48 +24,27 @@ func TestPlayerLineFitsWidth(t *testing.T) {
 			VolumePercent: &vol, DeviceID: "d"},
 		{Track: "三日月サンセット", Artist: "sakanaction", ProgressMS: 154000, DurationMS: 226000,
 			VolumePercent: &vol, DeviceID: "d", Playing: true},
+		{Track: "No Volume Device", Artist: "x", DurationMS: 1000, DeviceID: "d"},
 		{}, // nothing playing
 	}
 
-	for _, mark := range []string{"", "♪"} {
-		cfg.Icons.App = mark
-		for _, s := range states {
-			for w := 10; w <= 120; w++ {
-				line := buildPlayerLine(s, w, "")
-				if got := lipgloss.Width(line); got > w {
-					t.Fatalf("mark=%q width=%d produced %d columns: %q", mark, w, got, line)
-				}
+	for _, s := range states {
+		for w := 1; w <= 120; w++ {
+			line := buildPlayerLine(s, w, "")
+			if got := lipgloss.Width(line); got > w {
+				t.Fatalf("width=%d produced %d columns: %q", w, got, line)
 			}
 		}
 	}
 }
 
-func TestRemainingTime(t *testing.T) {
-	tests := []struct {
-		name          string
-		progress, dur int
-		want          string
-	}{
-		{"start of track", 0, 226000, "-3:46"},
-		{"midway", 154000, 226000, "-1:12"},
-		{"one second left", 225000, 226000, "-0:01"},
-		{"exactly finished", 226000, 226000, "-0:00"},
-		{"past ten minutes", 0, 740000, "-12:20"},
-
-		// Unknown duration: nothing sensible to show.
-		{"no duration", 5000, 0, ""},
-		{"negative duration", 5000, -1, ""},
-
-		// Spotify sometimes reports progress beyond the track length.
-		{"overrun clamps to zero", 300000, 226000, "-0:00"},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			s := PlaybackState{ProgressMS: tt.progress, DurationMS: tt.dur}
-			if got := remainingTime(s); got != tt.want {
-				t.Errorf("remainingTime(%d/%d) = %q, want %q", tt.progress, tt.dur, got, tt.want)
-			}
-		})
+func TestPlayerLineStatusFitsWidth(t *testing.T) {
+	initStyles(ThemeConfig{Name: "mono"}.resolve())
+	long := strings.Repeat("failed to load albums: ", 10)
+	for w := 1; w <= 60; w++ {
+		if got := lipgloss.Width(buildPlayerLine(PlaybackState{}, w, long)); got > w {
+			t.Fatalf("status at width=%d produced %d columns", w, got)
+		}
 	}
 }
 

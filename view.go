@@ -140,7 +140,7 @@ func playerLine(s PlaybackState, width int, status string) string {
 		return runewidth.Truncate(status, width, "…")
 	}
 	if s.Track == "" && s.DeviceID == "" {
-		return appMark() + styleAccent.Render(cfg.Icons.Pause) +
+		return styleAccent.Render(cfg.Icons.Pause) +
 			styleDim.Render(" no active playback — [space] select")
 	}
 
@@ -158,12 +158,7 @@ func playerLine(s PlaybackState, width int, status string) string {
 		right = styleDim.Render(fmt.Sprintf(" %s:%d", cfg.Icons.Volume, *s.VolumePercent)) + right
 	}
 
-	// The bar shows roughly how far along the track is; the number answers the
-	// question the bar can't — whether to start something now or wait it out.
-	prefix := appMark() + playSymbol + " "
-	if left := remainingTime(s); left != "" {
-		prefix += styleDim.Render(left) + " "
-	}
+	prefix := playSymbol + " "
 	prefixW := lipgloss.Width(prefix)
 	rightW := lipgloss.Width(right)
 	available := width - prefixW - rightW
@@ -198,29 +193,6 @@ func playerLine(s PlaybackState, width int, status string) string {
 		styleAccent.Render(bar[:filledW]) +
 		styleDim.Render(bar[filledW:]) +
 		right
-}
-
-// appMark is the glyph identifying the line as this player's, with its
-// trailing space. Empty when the icon is unset, so the column is not wasted.
-func appMark() string {
-	if cfg.Icons.App == "" {
-		return ""
-	}
-	return styleAccent.Render(cfg.Icons.App) + " "
-}
-
-// remainingTime renders how much of the current track is left, as -m:ss.
-// Empty when the duration is unknown.
-func remainingTime(s PlaybackState) string {
-	if s.DurationMS <= 0 {
-		return ""
-	}
-	left := s.DurationMS - s.ProgressMS
-	if left < 0 {
-		left = 0
-	}
-	sec := left / 1000
-	return fmt.Sprintf("-%d:%02d", sec/60, sec%60)
 }
 
 // progressBarChars returns the bar as a plain string and the number of filled characters.
