@@ -1,6 +1,9 @@
 package main
 
-import "testing"
+import (
+	"encoding/json"
+	"testing"
+)
 
 func TestNormalizeAlbumName(t *testing.T) {
 	tests := []struct {
@@ -189,6 +192,62 @@ func TestDefaultConfigListsEveryPressing(t *testing.T) {
 	}
 }
 
+// February 2026 renamed the playlist entry key from "track" to "item". Both
+// spellings must decode, or a playlist reads as empty.
+func TestPlaylistTrackItemAcceptsBothKeys(t *testing.T) {
+	tests := []struct {
+		name string
+		json string
+		want string
+	}{
+		{"new key", `{"item":{"name":"So What","uri":"spotify:track:1"}}`, "So What"},
+		{"old key", `{"track":{"name":"So What","uri":"spotify:track:1"}}`, "So What"},
+		{"both, new wins", `{"item":{"name":"new"},"track":{"name":"old"}}`, "new"},
+		{"neither", `{}`, ""},
+		{"removed track", `{"track":null}`, ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var item playlistTrackItem
+			if err := json.Unmarshal([]byte(tt.json), &item); err != nil {
+				t.Fatal(err)
+			}
+			got := ""
+			if e := item.entry(); e != nil {
+				got = e.Name
+			}
+			if got != tt.want {
+				t.Errorf("entry() name = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+// The same rename applies to the playlist object's own count.
+func TestPlaylistItemTotalFromEitherKey(t *testing.T) {
+	tests := []struct {
+		name string
+		json string
+		want int
+	}{
+		{"new key", `{"id":"x","items":{"total":93}}`, 93},
+		{"old key", `{"id":"x","tracks":{"total":42}}`, 42},
+		{"both, new wins", `{"id":"x","items":{"total":93},"tracks":{"total":42}}`, 93},
+		{"neither", `{"id":"x"}`, 0},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var p playlistItem
+			if err := json.Unmarshal([]byte(tt.json), &p); err != nil {
+				t.Fatal(err)
+			}
+			if got := p.toPlaylist().TrackCount; got != tt.want {
+				t.Errorf("TrackCount = %d, want %d", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestSearchLimitClamp(t *testing.T) {
 	tests := []struct {
 		in   int
@@ -197,7 +256,7 @@ func TestSearchLimitClamp(t *testing.T) {
 		{0, maxSearchLimit},
 		{-5, maxSearchLimit},
 		{5, 5},
-		{20, 20},
+		{5, 5},
 		{maxSearchLimit, maxSearchLimit},
 		// Anything above the cap is rejected by the API outright, so clamp
 		// rather than pass it through.

@@ -29,7 +29,7 @@
 # client_id     = ""
 # client_secret = ""
 # redirect_uri  = "http://127.0.0.1:8888/callback"
-# search_limit  = 20   # search results per query (max 50)
+# search_limit  = 10   # search results per query (max 10)
 
 # --- albums ---
 # an artist's catalogue usually carries several pressings of the same record:

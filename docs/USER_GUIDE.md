@@ -252,7 +252,7 @@ Configure credentials and search behavior in config:
 client_id     = ""   # alternative to SPOTIFY_CLIENT_ID env var
 client_secret = ""   # alternative to SPOTIFY_CLIENT_SECRET env var
 redirect_uri  = "http://127.0.0.1:8888/callback"
-search_limit  = 20   # results per search (max 50)
+search_limit  = 10   # results per search (max 10)
 ```
 
 Environment variables (`SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET`, `SPOTIFY_REDIRECT_URI`)

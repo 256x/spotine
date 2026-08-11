@@ -104,6 +104,10 @@ func (c *SpotifyClient) GetDevices(ctx context.Context) ([]Device, error) {
 
 // --- Playlists ---
 
+type itemCount struct {
+	Total int `json:"total"`
+}
+
 type playlistItem struct {
 	ID    string `json:"id"`
 	Name  string `json:"name"`
@@ -111,14 +115,18 @@ type playlistItem struct {
 	Owner struct {
 		DisplayName string `json:"display_name"`
 	} `json:"owner"`
-	Tracks *struct {
-		Total int `json:"total"`
-	} `json:"tracks"`
+	// February 2026 renamed this key from "tracks" to "items"; read whichever
+	// the response carries.
+	Tracks *itemCount `json:"tracks"`
+	Items  *itemCount `json:"items"`
 }
 
 func (p playlistItem) toPlaylist() Playlist {
 	total := 0
-	if p.Tracks != nil {
+	switch {
+	case p.Items != nil:
+		total = p.Items.Total
+	case p.Tracks != nil:
 		total = p.Tracks.Total
 	}
 	return Playlist{
@@ -169,19 +177,25 @@ func (c *SpotifyClient) GetUserPlaylists(ctx context.Context) ([]Playlist, error
 // playlist context is started with this as the offset; without it Spotify can
 // resume mid-playlist rather than at the top.
 func (c *SpotifyClient) GetFirstTrackURI(ctx context.Context, playlistID string) (string, error) {
-	path := playlistItemsPath(playlistID) + "?limit=1&fields=items(track(uri))"
+	path := playlistItemsPath(playlistID) + "?limit=1&fields=" +
+		url.QueryEscape("items(item(uri),track(uri))")
 	var r struct {
 		Items []struct {
-			Track struct {
-				URI string `json:"uri"`
-			} `json:"track"`
+			Item  *struct{ URI string } `json:"item"`
+			Track *struct{ URI string } `json:"track"`
 		} `json:"items"`
 	}
 	if err := c.getJSON(ctx, path, &r); err != nil {
 		return "", err
 	}
-	if len(r.Items) > 0 {
-		return r.Items[0].Track.URI, nil
+	if len(r.Items) == 0 {
+		return "", nil
+	}
+	switch e := r.Items[0]; {
+	case e.Item != nil:
+		return e.Item.URI, nil
+	case e.Track != nil:
+		return e.Track.URI, nil
 	}
 	return "", nil
 }
@@ -194,39 +208,56 @@ func playlistItemsPath(playlistID string) string {
 	return "/v1/playlists/" + url.PathEscape(playlistID) + "/items"
 }
 
+type playlistTrack struct {
+	Name  string `json:"name"`
+	URI   string `json:"uri"`
+	Album struct {
+		Name string `json:"name"`
+	} `json:"album"`
+	Artists []struct {
+		Name string `json:"name"`
+	} `json:"artists"`
+	DurationMS int `json:"duration_ms"`
+}
+
+// playlistTrackItem carries the entry under either key: February 2026 renamed
+// it from "track" to "item" along with the endpoint itself.
 type playlistTrackItem struct {
-	Track *struct {
-		Name  string `json:"name"`
-		URI   string `json:"uri"`
-		Album struct {
-			Name string `json:"name"`
-		} `json:"album"`
-		Artists []struct {
-			Name string `json:"name"`
-		} `json:"artists"`
-		DurationMS int `json:"duration_ms"`
-	} `json:"track"`
+	Item  *playlistTrack `json:"item"`
+	Track *playlistTrack `json:"track"`
+}
+
+// entry returns whichever of the two keys the response used, or nil when the
+// row is a removed or unavailable track.
+func (p playlistTrackItem) entry() *playlistTrack {
+	if p.Item != nil {
+		return p.Item
+	}
+	return p.Track
 }
 
 // GetPlaylistTracks returns every track in a playlist, following pagination.
 func (c *SpotifyClient) GetPlaylistTracks(ctx context.Context, playlistID string) ([]Track, error) {
-	const fields = "next,items(track(name,uri,duration_ms,album(name),artists(name)))"
+	// Asking for both spellings is accepted: the API returns whichever exists
+	// and ignores the other rather than rejecting the request.
+	const fields = "next,items(item(name,uri,duration_ms,album(name),artists(name))," +
+		"track(name,uri,duration_ms,album(name),artists(name)))"
 	path := playlistItemsPath(playlistID) + "?limit=100&fields=" + url.QueryEscape(fields)
 
 	var all []Track
 	err := paginate(ctx, c, path, maxPages, func(items []playlistTrackItem) {
 		for _, item := range items {
-			// Removed or unavailable entries come back as a null track.
-			if item.Track == nil {
+			e := item.entry()
+			if e == nil {
 				continue
 			}
 			t := Track{
-				Name:       item.Track.Name,
-				Album:      item.Track.Album.Name,
-				DurationMS: item.Track.DurationMS,
-				URI:        item.Track.URI,
+				Name:       e.Name,
+				Album:      e.Album.Name,
+				DurationMS: e.DurationMS,
+				URI:        e.URI,
 			}
-			for _, a := range item.Track.Artists {
+			for _, a := range e.Artists {
 				t.Artists = append(t.Artists, a.Name)
 			}
 			all = append(all, t)

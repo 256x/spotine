@@ -16,8 +16,10 @@ var sampleConfig []byte
 // on first run, so upgrading does not force a fresh login.
 const legacyApp = "slp"
 
-// Spotify's ceiling for search and artist-album pages.
-const maxSearchLimit = 50
+// Spotify's ceiling for search and artist-album pages. Measured, not assumed:
+// both reject 11 outright with "Invalid limit". Other paginated endpoints are
+// unaffected — playlist and album contents still take 50 to 100 a page.
+const maxSearchLimit = 10
 
 type ThemeConfig struct {
 	Name       string `toml:"name"`
@@ -157,7 +159,7 @@ func defaultConfig() Config {
 		},
 		Spotify: SpotifyConfig{
 			RedirectURI: "http://127.0.0.1:8888/callback",
-			SearchLimit: 20,
+			SearchLimit: maxSearchLimit,
 		},
 		UI: UIConfig{
 			TickInterval: 2,

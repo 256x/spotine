@@ -72,9 +72,17 @@ one-way — after it, the two keep separate tokens.
 
 Otherwise:
 
-1. Go to [developer.spotify.com/dashboard](https://developer.spotify.com/dashboard) and create an app
-2. Add `http://127.0.0.1:8888/callback` as a Redirect URI
-3. Set your credentials — either as environment variables:
+You supply your own Spotify app. `spotine` ships no credentials, so nothing is shared with
+anyone else and there is no service in the middle.
+
+1. Go to [developer.spotify.com/dashboard](https://developer.spotify.com/dashboard) and create an app.
+   Under **Which API/SDKs are you planning to use?** tick **Web API** — that is the only one needed
+2. Add `http://127.0.0.1:8888/callback` as a Redirect URI. It must be that literal address:
+   `localhost` is rejected, and the port is required
+3. **Settings → User Management → Add new user**, with your own name and the email address on
+   your Spotify account. An app starts in Development Mode, where only listed users may use it,
+   and everything returns `403` until you are on the list
+4. Set your credentials — either as environment variables:
 
 ```sh
 export SPOTIFY_CLIENT_ID=your_client_id
@@ -189,7 +197,7 @@ Config file: `~/.config/spotine/config.toml`
 # client_id     = ""          # alternative to SPOTIFY_CLIENT_ID env var
 # client_secret = ""          # alternative to SPOTIFY_CLIENT_SECRET env var
 # redirect_uri  = "http://127.0.0.1:8888/callback"
-# search_limit  = 20          # search results per query (max 50)
+# search_limit  = 10          # search results per query (max 10)
 
 [albums]
 # collapse_reissues = false   # true keeps only the original of each record

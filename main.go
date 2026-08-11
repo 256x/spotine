@@ -11,7 +11,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-const version = "v1.0.1"
+const version = "v1.0.2"
 
 func main() {
 	versionFlag := flag.Bool("version", false, "print version and exit")
