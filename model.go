@@ -31,12 +31,14 @@ type model struct {
 	selectedAlbum  Album
 	tracks         []Track
 	trackCursor    int
+	trackFilter    listFilter
 
 	devices      []Device
 	deviceCursor int
 
-	pendingURI    string
-	pendingOffset string
+	pendingURI     string
+	pendingOffset  string
+	pendingShuffle *bool // nil leaves the current shuffle state alone
 
 	playback      PlaybackState
 	statusMessage string
@@ -302,7 +304,7 @@ func (m model) handlePlayerKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return tea.QuitMsg{}
 		}
 
-	case "enter":
+	case " ":
 		if m, ok := m.requireDevice(); !ok {
 			return m, nil
 		}
@@ -328,28 +330,28 @@ func (m model) handlePlayerKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		return m, cmd
 
-	case "l", "right":
+	case "l", "right", ">":
 		if m, ok := m.requireDevice(); !ok {
 			return m, nil
 		}
 		return m, skipCmd(m.client, m.playback.DeviceID, m.client.Next)
 
-	case "h", "left":
+	case "h", "left", "<":
 		if m, ok := m.requireDevice(); !ok {
 			return m, nil
 		}
 		return m, skipCmd(m.client, m.playback.DeviceID, m.client.Previous)
 
-	case "k", "up":
+	case "k", "up", "0":
 		return m.adjustVolume(+5)
 
-	case "j", "down":
+	case "j", "down", "9":
 		return m.adjustVolume(-5)
 
 	case "?":
 		return m.openHelp()
 
-	case "s", "S":
+	case "S":
 		if m, ok := m.requireDevice(); !ok {
 			return m, nil
 		}
@@ -362,7 +364,7 @@ func (m model) handlePlayerKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return nil
 		}
 
-	case " ":
+	case "r":
 		if os.Getenv("TMUX") != "" || os.Getenv("ZELLIJ") != "" {
 			return m, openExternalSelect(m.client, m.mode)
 		}
@@ -447,9 +449,8 @@ func (m model) handleQueryKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if len(m.query) > 0 {
 			_, size := utf8.DecodeLastRuneInString(m.query)
 			m.query = m.query[:len(m.query)-size]
-			return m, nil
 		}
-		return m.closePopup()
+		return m, nil
 
 	case "?":
 		return m.openHelp()
@@ -465,42 +466,21 @@ func (m model) handleQueryKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 // --- stage: results (playlists or artists) ---
 
 func (m model) handleResultsKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	if m.results.filter.active {
-		return m.handleListFilterKey(msg, &m.results.filter, &m.results.cursor)
+	if msg.String() == "esc" {
+		return m.back()
+	}
+	if m.handleListKey(msg, &m.results.filter, &m.results.cursor, m.resultCount()) {
+		return m, nil
 	}
 
-	switch msg.String() {
-	case "q", "esc":
-		return m.closePopup()
-
-	case "backspace":
-		return m.back()
-
-	case "j", "down":
-		if m.results.cursor < m.resultCount()-1 {
-			m.results.cursor++
-		}
-
-	case "k", "up":
-		if m.results.cursor > 0 {
-			m.results.cursor--
-		}
-
-	case "/":
-		m.stage = stageQuery
-		return m, nil
-
-	case "?":
-		return m.openHelp()
-
-	case "enter":
+	if msg.String() == "enter" {
 		if m.loading {
-			break
+			return m, nil
 		}
 		if m.mode == modeAlbum {
 			artists := m.visibleArtists()
 			if len(artists) == 0 {
-				break
+				return m, nil
 			}
 			m.selectedArtist = artists[m.results.cursor]
 			m.stage = stageAlbums
@@ -512,12 +492,13 @@ func (m model) handleResultsKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		playlists := m.visiblePlaylists()
 		if len(playlists) == 0 {
-			break
+			return m, nil
 		}
 		// A playlist plays as a whole; the offset is resolved at playback time
 		// so it starts at the top rather than wherever Spotify left off.
 		m.pendingURI = playlists[m.results.cursor].URI
 		m.pendingOffset = ""
+		m.pendingShuffle = nil
 		return m.enterDeviceStage()
 	}
 
@@ -527,40 +508,20 @@ func (m model) handleResultsKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 // --- stage: albums ---
 
 func (m model) handleAlbumsKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	if m.albumFilter.active {
-		return m.handleListFilterKey(msg, &m.albumFilter, &m.albumCursor)
+	if msg.String() == "esc" {
+		return m.back()
+	}
+	if m.handleListKey(msg, &m.albumFilter, &m.albumCursor, len(m.visibleAlbums())) {
+		return m, nil
 	}
 
-	switch msg.String() {
-	case "q", "esc":
-		return m.closePopup()
-
-	case "backspace":
-		return m.back()
-
-	case "j", "down":
-		if m.albumCursor < len(m.visibleAlbums())-1 {
-			m.albumCursor++
-		}
-
-	case "k", "up":
-		if m.albumCursor > 0 {
-			m.albumCursor--
-		}
-
-	case "/":
-		m.albumFilter.active = true
-
-	case "?":
-		return m.openHelp()
-
-	case "enter":
+	if msg.String() == "enter" {
 		if m.loading {
-			break
+			return m, nil
 		}
 		albums := m.visibleAlbums()
 		if len(albums) == 0 {
-			break
+			return m, nil
 		}
 		m.selectedAlbum = albums[m.albumCursor]
 		m.pendingURI = m.selectedAlbum.URI
@@ -568,6 +529,7 @@ func (m model) handleAlbumsKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.loading = true
 		m.tracks = nil
 		m.trackCursor = 0
+		m.trackFilter.clear()
 		return m, fetchTracks(m.client, m.selectedAlbum.ID)
 	}
 
@@ -576,39 +538,53 @@ func (m model) handleAlbumsKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 // --- stage: tracks ---
 
-// The track list is offset by one: row 0 plays the whole record, and row i+1
-// starts at track i and plays on through the rest of it.
+func (m model) visibleTracks() []Track {
+	return filterByName(m.tracks, m.trackFilter.text, trackName)
+}
+
+// The unfiltered track list is offset by two, like m's play step: row 0 plays
+// the record in order, row 1 shuffled, and row i+2 starts at track i and plays
+// on through the rest. Once a filter is typed only the matching tracks remain,
+// as they would in fzf.
+func (m model) trackRowCount() int {
+	if m.trackFilter.text == "" {
+		return len(m.tracks) + 2
+	}
+	return len(m.visibleTracks())
+}
+
 func (m model) handleTracksKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	switch msg.String() {
-	case "q", "esc":
-		return m.closePopup()
-
-	case "backspace":
+	if msg.String() == "esc" {
 		return m.back()
+	}
+	if m.handleListKey(msg, &m.trackFilter, &m.trackCursor, m.trackRowCount()) {
+		return m, nil
+	}
 
-	case "j", "down":
-		if m.trackCursor < len(m.tracks) {
-			m.trackCursor++
-		}
-
-	case "k", "up":
-		if m.trackCursor > 0 {
-			m.trackCursor--
-		}
-
-	case "?":
-		return m.openHelp()
-
-	case "enter":
+	if msg.String() == "enter" {
 		if m.loading {
-			break
+			return m, nil
 		}
+		off := false
+		on := true
 		m.pendingOffset = ""
-		if m.trackCursor > 0 {
-			if m.trackCursor > len(m.tracks) {
-				break
+		m.pendingShuffle = &off
+		if m.trackFilter.text == "" {
+			switch {
+			case m.trackCursor == 1:
+				m.pendingShuffle = &on
+			case m.trackCursor >= 2:
+				if m.trackCursor-2 >= len(m.tracks) {
+					return m, nil
+				}
+				m.pendingOffset = m.tracks[m.trackCursor-2].URI
 			}
-			m.pendingOffset = m.tracks[m.trackCursor-1].URI
+		} else {
+			tracks := m.visibleTracks()
+			if m.trackCursor >= len(tracks) {
+				return m, nil
+			}
+			m.pendingOffset = tracks[m.trackCursor].URI
 		}
 		return m.enterDeviceStage()
 	}
@@ -635,12 +611,12 @@ func (m model) handleDevicesKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.quitting = true
 		return m, tea.Quit
 
-	case "j", "down":
+	case "j", "down", "ctrl+n", "ctrl+j":
 		if m.deviceCursor < len(m.devices)-1 {
 			m.deviceCursor++
 		}
 
-	case "k", "up":
+	case "k", "up", "ctrl+p", "ctrl+k":
 		if m.deviceCursor > 0 {
 			m.deviceCursor--
 		}
@@ -653,42 +629,51 @@ func (m model) handleDevicesKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.stage = stagePlayer
 		if m.selectMode {
 			client := m.client
-			uri, offset, deviceID := m.pendingURI, m.pendingOffset, selected.ID
+			uri, offset, deviceID, shuffle := m.pendingURI, m.pendingOffset, selected.ID, m.pendingShuffle
 			return m, func() tea.Msg {
-				_ = startPlayback(context.Background(), client, uri, deviceID, offset)
+				_ = startPlayback(context.Background(), client, uri, deviceID, offset, shuffle)
 				return tea.QuitMsg{}
 			}
 		}
 		m.setStatus("playing on: " + selected.Name)
-		return m, playCmd(m.client, m.pendingURI, selected.ID, m.pendingOffset)
+		return m, playCmd(m.client, m.pendingURI, selected.ID, m.pendingOffset, m.pendingShuffle)
 	}
 	return m, nil
 }
 
-// --- shared list filtering ---
+// --- shared list keys ---
 
-// handleListFilterKey drives the "/" filter shared by the result and album
-// lists. Filtering is local, so every keystroke just narrows what is on hand.
-func (m model) handleListFilterKey(msg tea.KeyMsg, f *listFilter, cursor *int) (tea.Model, tea.Cmd) {
+// handleListKey drives the fzf-style list shared by the result, album and
+// track stages: arrows move, anything printable narrows the list. Filtering is
+// local, so every keystroke just narrows what is on hand. It reports whether
+// the key was consumed.
+func (m model) handleListKey(msg tea.KeyMsg, f *listFilter, cursor *int, count int) bool {
 	switch msg.String() {
-	case "esc":
-		f.clear()
-		*cursor = 0
-	case "enter":
-		f.active = false
+	case "up", "ctrl+p", "ctrl+k":
+		if *cursor > 0 {
+			*cursor--
+		}
+	case "down", "ctrl+n", "ctrl+j":
+		if *cursor < count-1 {
+			*cursor++
+		}
 	case "backspace":
 		if len(f.text) > 0 {
 			_, size := utf8.DecodeLastRuneInString(f.text)
 			f.text = f.text[:len(f.text)-size]
 			*cursor = 0
-		} else {
-			f.active = false
 		}
+	case "ctrl+u":
+		f.clear()
+		*cursor = 0
+	case "enter", "ctrl+c":
+		return false
 	default:
-		if len(msg.Runes) > 0 {
-			f.text += string(msg.Runes)
-			*cursor = 0
+		if msg.Type != tea.KeyRunes || msg.Alt || len(msg.Runes) == 0 {
+			return false
 		}
+		f.text += string(msg.Runes)
+		*cursor = 0
 	}
-	return m, nil
+	return true
 }

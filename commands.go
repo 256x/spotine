@@ -136,10 +136,14 @@ func skipCmd(client *SpotifyClient, deviceID string, fn func(context.Context, st
 // startPlayback moves playback to the chosen device and starts the context.
 // A playlist with no explicit offset is pinned to its first track, otherwise
 // Spotify may resume it wherever it was last left.
-func startPlayback(ctx context.Context, client *SpotifyClient, uri, deviceID, offsetURI string) error {
+// A non-nil shuffle is applied before the context starts; nil leaves it alone.
+func startPlayback(ctx context.Context, client *SpotifyClient, uri, deviceID, offsetURI string, shuffle *bool) error {
 	if deviceID != "" {
 		_ = client.TransferPlayback(ctx, deviceID)
 		time.Sleep(500 * time.Millisecond)
+	}
+	if shuffle != nil {
+		_ = client.SetShuffle(ctx, deviceID, *shuffle)
 	}
 	if offsetURI == "" {
 		if parts := strings.Split(uri, ":"); len(parts) == 3 && parts[1] == "playlist" {
@@ -149,10 +153,10 @@ func startPlayback(ctx context.Context, client *SpotifyClient, uri, deviceID, of
 	return client.PlayContext(ctx, uri, deviceID, offsetURI)
 }
 
-func playCmd(client *SpotifyClient, uri, deviceID, offsetURI string) tea.Cmd {
+func playCmd(client *SpotifyClient, uri, deviceID, offsetURI string, shuffle *bool) tea.Cmd {
 	return func() tea.Msg {
 		ctx := context.Background()
-		if err := startPlayback(ctx, client, uri, deviceID, offsetURI); err != nil {
+		if err := startPlayback(ctx, client, uri, deviceID, offsetURI, shuffle); err != nil {
 			return apiErrorMsg{Err: err}
 		}
 		time.Sleep(300 * time.Millisecond)

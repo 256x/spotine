@@ -52,7 +52,7 @@ const (
 	stageHelp
 )
 
-// previousStage is where backspace goes. Keeping it in one place is the whole
+// previousStage is where esc goes. Keeping it in one place is the whole
 // point: the device picker's back target depends on the mode, and spreading
 // that decision across handlers is what produced the same bug twice.
 func (m model) previousStage() stage {
@@ -74,13 +74,12 @@ func (m model) previousStage() stage {
 }
 
 // listFilter is the local, no-network filtering applied inside a list stage.
+// Like fzf, typing in a list always narrows it.
 type listFilter struct {
-	active bool
-	text   string
+	text string
 }
 
 func (f *listFilter) clear() {
-	f.active = false
 	f.text = ""
 }
 

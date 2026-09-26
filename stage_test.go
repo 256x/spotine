@@ -125,9 +125,9 @@ func TestFilterByName(t *testing.T) {
 }
 
 func TestListFilterClear(t *testing.T) {
-	f := listFilter{active: true, text: "blue"}
+	f := listFilter{text: "blue"}
 	f.clear()
-	if f.active || f.text != "" {
+	if f.text != "" {
 		t.Errorf("clear() left %+v", f)
 	}
 }

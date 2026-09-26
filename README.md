@@ -40,7 +40,7 @@ kept.
 **Why tmux/zellij?**
 
 The picker uses your multiplexer's native floating window. No alt-screen takeover, no
-context switch. Press `space`, pick something, and the popup disappears. Your layout is
+context switch. Press `r`, pick something, and the popup disappears. Your layout is
 untouched.
 
 [User Guide](./docs/USER_GUIDE.md)
@@ -129,15 +129,17 @@ Or add it to your zellij layout as a fixed-size pane.
 
 ## Keys
 
+Modeled on my local `m` player (fzf picker, mpv keys).
+
 | Key | Action |
 |---|---|
-| `enter` | play / pause |
-| `space` | open the picker |
-| `h` / `←` | previous track |
-| `l` / `→` | next track |
-| `k` / `↑` | volume +5 |
-| `j` / `↓` | volume -5 |
-| `s` | toggle shuffle |
+| `space` | play / pause |
+| `r` | reselect (open the picker) |
+| `h` / `←` / `<` | previous track |
+| `l` / `→` / `>` | next track |
+| `k` / `↑` / `0` | volume +5 |
+| `j` / `↓` / `9` | volume -5 |
+| `S` | toggle shuffle |
 | `?` | key bindings |
 | `q` / `esc` | quit (pauses playback) |
 
@@ -149,24 +151,23 @@ In the search box:
 | `enter` (with text) | search Spotify |
 | `enter` (empty, playlist mode) | list your own playlists |
 | `enter` (empty, album mode) | search for the artist currently playing |
-| `backspace` | back / close |
 | `esc` | close popup |
 
-In a list:
+In a list (playlists, artists, albums, tracks):
 
 | Key | Action |
 |---|---|
-| `j` / `k` | navigate |
+| type | filter the list |
+| `↑` / `↓` / `ctrl+n` / `ctrl+p` | move |
 | `enter` | playlist → play it; artist → its albums; album → its tracks |
-| `/` | search again, or filter the list |
-| `backspace` | back one screen |
-| `esc` / `q` | close popup |
+| `esc` | back one screen |
 
 In the track list:
 
 | Key | Action |
 |---|---|
-| `enter` (top row) | play the whole record |
+| `enter` (`sequential`) | play the whole record in order |
+| `enter` (`shuffle`) | play the whole record shuffled |
 | `enter` (on a track) | start there and play on to the end |
 
 In the device picker:
@@ -174,7 +175,7 @@ In the device picker:
 | Key | Action |
 |---|---|
 | `enter` | select device and start playback |
-| `backspace` / `esc` | back one screen |
+| `esc` | back one screen |
 
 ---
 

@@ -63,7 +63,7 @@ Ctrl-p n  (then run spotine)
 
 **2. Open the picker**
 
-Press `space`. A floating popup appears using your multiplexer's native window.
+Press `r`. A floating popup appears using your multiplexer's native window.
 
 **3. Find something**
 
@@ -72,7 +72,7 @@ search Spotify. In artist mode, type an artist name. Press `tab` to swap modes.
 
 **4. Select a device**
 
-Use `j` / `k` to navigate and `enter` to select. `backspace` goes back one screen.
+Use `↑` / `↓` to navigate and `enter` to select. `esc` goes back one screen.
 
 **5. Go back to work**
 
@@ -89,7 +89,7 @@ The popup opens with a text cursor:
 │ ❯ █                                              │
 │ ──────────────────────────────────────────────── │
 ╰──────────────────────────────────────────────────╯
-  enter:my playlists  tab:artist mode  bs:back  esc:close
+  enter:my playlists  tab:artist mode  esc:close
 ```
 
 **Loading your playlists:**
@@ -99,8 +99,8 @@ Press `enter` with empty input. Your playlists load, sorted by track count (most
 Type a word (e.g. `lofi`) and press `enter`. Returns matching public playlists.
 
 **Filtering loaded results:**
-Press `/` to go back to the search box. Typing there searches Spotify again; to narrow what is
-already loaded without a new request, use the filter inside the list.
+Just type. Every list narrows as you type, like fzf, with no new request. Press `esc` to go
+back to the search box and search Spotify again.
 
 **Playing:**
 `enter` on a playlist opens the device picker, then plays from the first track.
@@ -125,7 +125,7 @@ There is no list of artists you follow: that needs an OAuth scope spotine does n
 Listed **oldest first**. Reissues and remasters carry recent release dates, so newest-first
 would bury an artist's actual work under decades of repackaging.
 
-Long catalogues run past a hundred entries. Press `/` to filter the list by title — this is
+Long catalogues run past a hundred entries. Just type to filter the list by title — this is
 local, no request is made.
 
 **Every pressing, or one per record:**
@@ -146,15 +146,17 @@ the list, not as the 2022 deluxe mix sitting at 2022.
 
 ```
 ╭─ Scarecrow ──────────────────────────────── 1/12 ╮
-│ ❯ play all (11 tracks)                           │
+│ ❯ sequential                                     │
+│   shuffle                                        │
 │   1. Rain On The Scarecrow                  3:47 │
 │   2. Grandma's Theme                        0:53 │
 │   3. Small Town                             3:41 │
 ╰──────────────────────────────────────────────────╯
 ```
 
-The top row plays the whole record. Picking a track starts there and plays on through the rest
-of the album — it does not stop after one song.
+`sequential` plays the whole record in order and `shuffle` plays it shuffled, as in `m`. Picking
+a track starts there, in order, and plays on through the rest of the album — it does not stop
+after one song. Typing filters the tracks; the two mode rows step aside while a filter is set.
 
 ---
 
@@ -170,20 +172,20 @@ The active one is marked with `·` in the right column.
 | `backspace` / `esc` | back one screen |
 | `q` / `ctrl+c` | quit |
 
-`backspace` returns to the track list in artist mode, and to the playlist list in playlist mode.
+`esc` returns to the track list in artist mode, and to the playlist list in playlist mode.
 
 ---
 
 ## Going Back
 
-`backspace` always steps back exactly one screen:
+`esc` always steps back exactly one screen:
 
 ```
 device → tracks → albums → artists → search → player     (artist mode)
 device → playlists → search → player                     (playlist mode)
 ```
 
-`esc` or `q` closes the whole popup at once.
+From the search box, `esc` closes the popup.
 
 ---
 
@@ -281,7 +283,7 @@ shuffle = "S"
 ## Volume
 
 Volume control requires a Spotify Premium device that supports it.
-If the active device doesn't support volume, `j` / `k` will show a status message instead.
+If the active device doesn't support volume, `j` / `k` (or `0` / `9`) will show a status message instead.
 The volume indicator is hidden automatically on unsupported devices.
 
 ---
@@ -305,7 +307,7 @@ The name filter is a case-insensitive substring match against your own playlists
 
 spotine works in any terminal. In non-tmux/zellij environments:
 
-- `space` opens an inline popup centered on the screen
+- `r` opens an inline popup centered on the screen
 - `?` shows key bindings as an inline overlay
 
 The single-line player still works in a full-height terminal window.

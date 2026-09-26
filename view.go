@@ -62,18 +62,21 @@ func initStyles(t resolvedTheme) {
 // --- view entry point ---
 
 var helpItems = []string{
-	"enter  play / pause",
-	"h/←   previous track",
-	"l/→   next track",
-	"k/↑   volume +5",
-	"j/↓   volume -5",
-	"s     toggle shuffle",
-	"spc   open the picker",
-	"tab   playlists ↔ artists",
-	"/     filter the list",
+	"spc   play / pause",
+	"r     reselect (picker)",
+	"h/←/< previous track",
+	"l/→/> next track",
+	"k/↑/0 volume +5",
+	"j/↓/9 volume -5",
+	"S     toggle shuffle",
 	"?     key bindings",
-	"bs    go back / close",
 	"q     quit",
+	"",
+	"in the picker:",
+	"type  filter the list",
+	"↑↓    move",
+	"tab   playlists ↔ artists",
+	"esc   go back / close",
 	"",
 	"any key to close",
 }
@@ -141,7 +144,7 @@ func playerLine(s PlaybackState, width int, status string) string {
 	}
 	if s.Track == "" && s.DeviceID == "" {
 		return styleAccent.Render(cfg.Icons.Pause) +
-			styleDim.Render(" no active playback — [space] select")
+			styleDim.Render(" no active playback — [r] select")
 	}
 
 	playSymbol := styleAccent.Render(cfg.Icons.Play)
@@ -243,7 +246,6 @@ func (m model) renderQuery() string {
 	hints := renderHints(
 		[]string{"enter", enterLabel},
 		[]string{"tab", other},
-		[]string{"bs", "back"},
 		[]string{"esc", "close"},
 	)
 	popup := renderPopupBox(m.modeLabel(), nil, nil, -1, -1, m.query, true, m.width, m.height)
@@ -256,17 +258,11 @@ func (m model) renderResults() string {
 		return overlay(m.base(), popup, m.width, m.height)
 	}
 
-	var hints string
-	if m.results.filter.active {
-		hints = renderHints([]string{"enter", "done"}, []string{"bs", "back"}, []string{"esc", "clear"})
-	} else {
-		next := "play"
-		if m.mode == modeAlbum {
-			next = "albums"
-		}
-		hints = renderHints([]string{"↑↓", "move"}, []string{"enter", next},
-			[]string{"/", "search"}, []string{"bs", "back"}, []string{"esc", "close"})
+	next := "play"
+	if m.mode == modeAlbum {
+		next = "albums"
 	}
+	hints := renderHints([]string{"↑↓", "move"}, []string{"enter", next}, []string{"esc", "back"})
 
 	var items, rightLabels []string
 	if m.mode == modeAlbum {
@@ -296,7 +292,7 @@ func (m model) renderResults() string {
 	}
 
 	popup := renderPopupBox(m.modeLabel(), items, rightLabels, m.results.cursor, total,
-		m.results.filter.text, m.results.filter.active, m.width, m.height)
+		m.results.filter.text, true, m.width, m.height)
 	return overlay(hints, popup, m.width, m.height)
 }
 
@@ -311,13 +307,7 @@ func (m model) renderAlbums() string {
 		return overlay(m.base(), popup, m.width, m.height)
 	}
 
-	var hints string
-	if m.albumFilter.active {
-		hints = renderHints([]string{"enter", "done"}, []string{"bs", "back"}, []string{"esc", "clear"})
-	} else {
-		hints = renderHints([]string{"↑↓", "move"}, []string{"enter", "tracks"},
-			[]string{"/", "filter"}, []string{"bs", "artists"}, []string{"esc", "close"})
-	}
+	hints := renderHints([]string{"↑↓", "move"}, []string{"enter", "tracks"}, []string{"esc", "artists"})
 
 	albums := m.visibleAlbums()
 	items := make([]string, len(albums))
@@ -340,7 +330,7 @@ func (m model) renderAlbums() string {
 	}
 
 	popup := renderPopupBox(title, items, rightLabels, m.albumCursor, len(albums),
-		m.albumFilter.text, m.albumFilter.active, m.width, m.height)
+		m.albumFilter.text, true, m.width, m.height)
 	return overlay(hints, popup, m.width, m.height)
 }
 
@@ -355,21 +345,16 @@ func (m model) renderTracks() string {
 		return overlay(m.base(), popup, m.width, m.height)
 	}
 
-	hints := renderHints([]string{"↑↓", "move"}, []string{"enter", "play"},
-		[]string{"bs", "albums"}, []string{"esc", "close"})
+	hints := renderHints([]string{"↑↓", "move"}, []string{"enter", "play"}, []string{"esc", "albums"})
 
-	// Row 0 is the whole record; the tracks follow it.
-	items := make([]string, 0, len(m.tracks)+1)
-	rightLabels := make([]string, 0, len(m.tracks)+1)
-
-	all := "play all"
-	if n := len(m.tracks); n > 0 {
-		all = fmt.Sprintf("play all (%d tracks)", n)
+	// Unfiltered, the two mode rows lead the tracks; a filter leaves only matches.
+	var items, rightLabels []string
+	tracks := m.visibleTracks()
+	if m.trackFilter.text == "" {
+		items = append(items, "sequential", "shuffle")
+		rightLabels = append(rightLabels, "", "")
 	}
-	items = append(items, all)
-	rightLabels = append(rightLabels, "")
-
-	for i, t := range m.tracks {
+	for i, t := range tracks {
 		n := t.TrackNumber
 		if n <= 0 {
 			n = i + 1
@@ -377,8 +362,12 @@ func (m model) renderTracks() string {
 		items = append(items, fmt.Sprintf("%d. %s", n, t.Name))
 		rightLabels = append(rightLabels, t.Duration())
 	}
+	if len(items) == 0 {
+		items = []string{"(no tracks)"}
+		rightLabels = nil
+	}
 
-	popup := renderPopupBox(title, items, rightLabels, m.trackCursor, len(items), "", false, m.width, m.height)
+	popup := renderPopupBox(title, items, rightLabels, m.trackCursor, m.trackRowCount(), m.trackFilter.text, true, m.width, m.height)
 	return overlay(hints, popup, m.width, m.height)
 }
 

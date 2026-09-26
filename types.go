@@ -83,3 +83,4 @@ type Device struct {
 func playlistName(p Playlist) string { return p.Name }
 func artistName(a Artist) string     { return a.Name }
 func albumName(a Album) string       { return a.Name }
+func trackName(t Track) string       { return t.Name }
