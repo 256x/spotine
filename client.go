@@ -13,6 +13,13 @@ import (
 	"time"
 )
 
+// maxRetryAfter is the longest Retry-After this client will wait out inline.
+// Anything beyond it is a block worth surfacing, not sleeping through.
+const maxRetryAfter = 30
+
+// apiBase is a var, not a const, so tests can point it at an httptest server.
+var apiBase = "https://api.spotify.com"
+
 type SpotifyClient struct {
 	mu           sync.Mutex
 	token        *TokenData
@@ -70,7 +77,7 @@ func (c *SpotifyClient) do(ctx context.Context, method, path string, body any) (
 			bodyReader = bytes.NewReader(data)
 		}
 
-		req, err := http.NewRequestWithContext(ctx, method, "https://api.spotify.com"+path, bodyReader)
+		req, err := http.NewRequestWithContext(ctx, method, apiBase+path, bodyReader)
 		if err != nil {
 			return nil, err
 		}
@@ -102,6 +109,15 @@ func (c *SpotifyClient) do(ctx context.Context, method, path string, body any) (
 			}
 		}
 		resp.Body.Close()
+
+		// A short Retry-After is normal per-request throttling; wait it out.
+		// Spotify's app-wide quota block returns one in the hours, and
+		// sleeping through that would hang the popup for the rest of the
+		// day with no way out. Fail fast instead so the UI stays usable.
+		if retryAfter > maxRetryAfter {
+			return nil, fmt.Errorf("rate limited by Spotify, retry after %s", time.Duration(retryAfter)*time.Second)
+		}
+
 		c.debugLog("rate limited, sleeping %ds", retryAfter)
 		select {
 		case <-ctx.Done():
